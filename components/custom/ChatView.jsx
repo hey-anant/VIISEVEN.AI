@@ -1,0 +1,222 @@
+"use client";
+import { useConvex, useMutation } from "convex/react";
+import { useParams } from "next/navigation";
+import React, { useEffect, useContext, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { MessageContext } from "@/context/MessageContext";
+import { UserDetailContext } from "@/context/UserDetailContext";
+import Image from "next/image";
+import Colors from "@/data/Colors";
+// import { GetWorkspace } from '@/convex/workspace'
+import Lookup from "@/data/Lookup";
+import { ArrowRight, Link, Loader2Icon } from "lucide-react";
+import axios from "axios";
+import ReactMarkdown from "react-markdown";
+import Prompt from "@/data/Prompt";
+import { useSidebar } from "../ui/sidebar";
+import { toast } from "sonner";
+
+// NOTE: This is an approximate word-based token count, not actual AI tokens.
+// Actual Gemini token counting would require an API call (countTokens).
+export const countToken = (inputText) => {
+  return inputText
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word).length;
+};
+
+const ChatView = () => {
+  const { id } = useParams();
+  const convex = useConvex();
+  const { messages, setMessages } = useContext(MessageContext);
+  const [loading, setLoading] = useState(false);
+  const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const [userInput, setUserInput] = useState("");
+  const UpdateMessages = useMutation(api.workspace.UpdateMessages);
+  const { toggleSidebar } = useSidebar();
+
+  const UpdateTokens = useMutation(api.users.UpdateToken);
+  // console.log("Current id from params:", id)
+  /**
+   * Used to fetch workspace data using workspace id
+   */
+  useEffect(() => {
+    id && GetWorkspaceData();
+  }, [id]);
+
+  const GetWorkspaceData = async () => {
+    // console.log("GetWorkspaceData called with id:", id) // Debug
+
+    try {
+      const result = await convex.query(api.workspace.GetWorkspace, {
+        workspaceId: id,
+      });
+      setMessages(result?.messages || []);
+      // console.log(result);
+    } catch (error) {
+      console.error("Error fetching workspace data:", error);
+      setMessages([]); // Reset messages on error
+    }
+  };
+
+  const GenAiResponse = async () => {
+    setLoading(true);
+    try {
+      const PROMPT = JSON.stringify(messages) + Prompt.CHAT_PROMPT;
+      const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000";
+      const result = await axios.post(`${SERVER_URL}/api/ai-chat`, { prompt: PROMPT });
+      
+      // Check if the response contains an error
+      if (result.data.error) {
+        console.error("AI API Error:", result.data.error);
+        
+        // Check if it's a rate limit error
+        if (result.data.error.includes("429") || result.data.error.includes("quota")) {
+          toast.error("Rate limit exceeded. Please wait a moment and try again.");
+        } else {
+          toast.error("AI Error: " + result.data.error);
+        }
+        setLoading(false);
+        return;
+      }
+      
+      console.log("AI Response:", result.data.result);
+
+      const aiResp = {
+        role: "ai",
+        content: result.data.result,
+      };
+
+      setMessages((prev) => [...prev, aiResp]);
+
+      await UpdateMessages({
+        messages: [...messages, aiResp],
+        workspaceId: id,
+      });
+      
+      const token =
+        Number(userDetail?.token) - Number(countToken(JSON.stringify(aiResp)));
+      // updating the tokens in the database
+      setUserDetail(prev=>(prev ? {
+        ...prev,
+        token:token
+      } : prev))
+      if (userDetail?._id) {
+        await UpdateTokens({
+          userId: userDetail?._id,
+          token: token,
+        });
+      }
+    } catch (error) {
+      console.error("Error in GenAiResponse:", error);
+      toast.error("Failed to generate AI response. Please check your API key.");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (messages?.length > 0) {
+      const role = messages[messages?.length - 1]?.role;
+      if (role == "user") {
+        GenAiResponse();
+      }
+    }
+  }, [messages]);
+
+  const onGenerate = (input) => {
+    if(userDetail?.token<10){
+      toast('You dont have enough token!')
+      return
+    }
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: input,
+      },
+    ]);
+    setUserInput("");
+  };
+
+  if (!messages) {
+    return (
+      <div className="flex items-center justify-center h-[85vh]">
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5 items-center justify-center   relative h-[85vh] p-5">
+      <div className="flex-1 overflow-y-scroll scrollbar-hide w-full mb-5">
+        {Array.isArray(messages) &&
+          messages?.map((msg, index) => (
+            <div
+              key={index}
+              className={`p-3 mb-2 flex gap-2 items-start leading-7 rounded-lg `}
+              style={{ backgroundColor: Colors.CHAT_BACKGROUND }}
+            >
+              {msg?.role == "user" && userDetail?.picture && (
+                <Image
+                  src={userDetail.picture}
+                  alt="userImage"
+                  width={35}
+                  height={35}
+                  className="inline-block rounded-full mr-2"
+                />
+              )}
+              <div className="flex flex-col">
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              </div>
+            </div>
+          ))}
+        {loading && (
+          <div
+            className="p-3 mb-2 flex gap-2 items-center rounded-lg "
+            style={{ backgroundColor: Colors.CHAT_BACKGROUND }}
+          >
+            <Loader2Icon className="animate-spin" />
+            <h2>Generating Response...</h2>
+          </div>
+        )}
+      </div>
+      {/* {Input section} */}
+      <div className="flex gap-2 items-end">
+        {userDetail?.picture && (
+          <Image
+            src={userDetail.picture}
+            alt="user"
+            height={30}
+            width={30}
+            className="rounded-full cursor-pointer"
+            onClick={toggleSidebar}
+          />
+        )}
+        <div
+          className="p-5 border rounded-xl max-w-xl w-full"
+          style={{ backgroundColor: Colors.BACKGROUND }}
+        >
+          <div className="flex gap-2 mt-3">
+            <textarea
+              placeholder={Lookup.INPUT_PLACEHOLDER}
+              value={userInput}
+              onChange={(event) => setUserInput(event.target.value)}
+              className="text-white outline-none bg-transparent w-full h-32 max-h-56 resize-none"
+            />
+            {userInput && (
+              <ArrowRight
+                onClick={() => onGenerate(userInput)}
+                className=" bg-blue-500 p-2 h-10 w-10 rounded-md  cursor-pointer hover:text-white transition"
+              />
+            )}
+          </div>
+          <div>
+            <Link className="h-5" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChatView;
