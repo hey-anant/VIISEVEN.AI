@@ -65,23 +65,4 @@ To test locally before deploying:
    npm start
    ```
 
-## Troubleshooting
 
-If you still see errors after adding environment variables:
-
-1. **Check the error message in browser console** - It should now show a clear error message
-2. **Verify API key is valid** - Test it locally first
-3. **Check deployment logs** - Look for any warnings about missing environment variables
-4. **Clear build cache** - Some platforms cache builds; try clearing the cache and redeploying
-
-## What Changed
-
-1. **`configs/AiModel.jsx`**: Added lazy initialization to prevent build-time errors
-2. **API Routes**: Added proper error handling with HTTP status codes
-3. **Error Messages**: Now provides clear feedback when API key is missing
-
-## Important Notes
-
-- Environment variables starting with `NEXT_PUBLIC_` are exposed to the browser
-- Never commit `.env.local` to version control
-- Always redeploy after changing environment variables
