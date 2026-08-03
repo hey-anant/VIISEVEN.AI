@@ -65,7 +65,7 @@ export const getGenAiCode = () => {
   });
 };
 
-const MODEL_NAMES = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"];
+const MODEL_NAMES = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"];
 
 const getModelByName = (modelName) => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -78,50 +78,56 @@ const getModelByName = (modelName) => {
   return genAI.getGenerativeModel({ model: modelName });
 };
 
-export const chatSession = {
-  sendMessage: async (message) => {
-    let lastError = null;
-    for (const modelName of MODEL_NAMES) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Sends a message with automatic model fallback and exponential backoff on 429.
+ * - Tries each model in MODEL_NAMES order.
+ * - On 429: waits with backoff (2s, 4s, 8s...) then tries the next model.
+ * - After exhausting all models, retries once from the first model with a longer delay.
+ */
+async function sendWithRetry(message, genConfig) {
+  let lastError = null;
+  const maxRounds = 2; // try the full model list up to 2 times
+
+  for (let round = 0; round < maxRounds; round++) {
+    for (let i = 0; i < MODEL_NAMES.length; i++) {
+      const modelName = MODEL_NAMES[i];
       try {
         const modelInstance = getModelByName(modelName);
         const session = modelInstance.startChat({
-          generationConfig,
+          generationConfig: genConfig,
           history: [],
         });
         return await session.sendMessage(message);
       } catch (err) {
         lastError = err;
-        if (err.message && err.message.includes("429")) {
-          console.warn(`Model ${modelName} hit 429 rate limit, trying next model...`);
+        const is429 =
+          err.message && (err.message.includes("429") || err.message.includes("quota") || err.message.includes("RESOURCE_EXHAUSTED"));
+
+        if (is429) {
+          // Exponential backoff: 2s, 4s, 8s per attempt across all rounds
+          const attempt = round * MODEL_NAMES.length + i;
+          const delayMs = Math.min(2000 * Math.pow(2, attempt), 30000);
+          console.warn(
+            `Model ${modelName} hit 429 rate limit (attempt ${attempt + 1}). Waiting ${delayMs / 1000}s...`
+          );
+          await sleep(delayMs);
           continue;
         }
+        // Non-429 errors: throw immediately
         throw err;
       }
     }
-    throw lastError;
   }
+  throw lastError;
+}
+
+export const chatSession = {
+  sendMessage: async (message) => sendWithRetry(message, generationConfig),
 };
 
 export const GenAiCode = {
-  sendMessage: async (message) => {
-    let lastError = null;
-    for (const modelName of MODEL_NAMES) {
-      try {
-        const modelInstance = getModelByName(modelName);
-        const session = modelInstance.startChat({
-          generationConfig: CodeGenerationConfig,
-          history: [],
-        });
-        return await session.sendMessage(message);
-      } catch (err) {
-        lastError = err;
-        if (err.message && err.message.includes("429")) {
-          console.warn(`Model ${modelName} hit 429 rate limit, trying next model...`);
-          continue;
-        }
-        throw err;
-      }
-    }
-    throw lastError;
-  }
+  sendMessage: async (message) => sendWithRetry(message, CodeGenerationConfig),
 };
+

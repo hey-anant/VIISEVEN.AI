@@ -56,7 +56,10 @@ const CodeView = () => {
     if (messages?.length > 0) {
       const role = messages[messages?.length - 1].role;
       if (role == 'user') {
-        GenerateAiCode()
+        // Stagger: delay code generation so ChatView's lighter API call
+        // fires first, reducing concurrent Gemini API pressure and 429s.
+        const timer = setTimeout(() => GenerateAiCode(), 2000);
+        return () => clearTimeout(timer);
       }
     }
   }, [messages])
