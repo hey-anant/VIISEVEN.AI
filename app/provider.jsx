@@ -41,6 +41,14 @@ function Provider({ children }) {
     }
   }, []);
 
+  // Sync userDetail changes to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && userDetail) {
+      localStorage.setItem("user", JSON.stringify(userDetail));
+    }
+  }, [userDetail]);
+
+
   // Auto-sync: if user has email but no Convex _id, fetch/create in Convex
   useEffect(() => {
     const syncUserWithConvex = async () => {
@@ -77,7 +85,7 @@ function Provider({ children }) {
           if (typeof window !== 'undefined') {
             localStorage.setItem('user', JSON.stringify(syncedUser));
           }
-          console.log('User synced with Convex:', syncedUser);
+
         }
       } catch (error) {
         console.error('Error syncing user with Convex:', error);

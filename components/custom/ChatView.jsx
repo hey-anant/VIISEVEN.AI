@@ -35,8 +35,7 @@ const ChatView = () => {
   const UpdateMessages = useMutation(api.workspace.UpdateMessages);
   const { toggleSidebar } = useSidebar();
 
-  const UpdateTokens = useMutation(api.users.UpdateToken);
-  // console.log("Current id from params:", id)
+
   /**
    * Used to fetch workspace data using workspace id
    */
@@ -63,7 +62,7 @@ const ChatView = () => {
     setLoading(true);
     try {
       const PROMPT = JSON.stringify(messages) + Prompt.CHAT_PROMPT;
-      const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000";
+      const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "";
       const result = await axios.post(`${SERVER_URL}/api/ai-chat`, { prompt: PROMPT });
       
       // Check if the response contains an error
@@ -80,33 +79,22 @@ const ChatView = () => {
         return;
       }
       
-      console.log("AI Response:", result.data.result);
+
 
       const aiResp = {
         role: "ai",
         content: result.data.result,
       };
 
-      setMessages((prev) => [...prev, aiResp]);
+      const updatedMessages = [...messages, aiResp];
+      setMessages(updatedMessages);
 
       await UpdateMessages({
-        messages: [...messages, aiResp],
+        messages: updatedMessages,
         workspaceId: id,
       });
-      
-      const token =
-        Number(userDetail?.token) - Number(countToken(JSON.stringify(aiResp)));
-      // updating the tokens in the database
-      setUserDetail(prev=>(prev ? {
-        ...prev,
-        token:token
-      } : prev))
-      if (userDetail?._id) {
-        await UpdateTokens({
-          userId: userDetail?._id,
-          token: token,
-        });
-      }
+      // NOTE: Token deduction is handled exclusively by CodeView to avoid
+      // double-deducting when both components react to the same user message.
     } catch (error) {
       console.error("Error in GenAiResponse:", error);
       toast.error("Failed to generate AI response. Please check your API key.");

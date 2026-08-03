@@ -1,7 +1,7 @@
 import dedent from "dedent";
 
 export default {
-  SUGGSTIONS: ['Create ToDo App in React', 'Create Budget Track App', 'Create Gym Managment Portal Dashboard', 'Create Quizz App On History', 'Create Login Signup Screen'],
+  SUGGESTIONS: ['Create ToDo App in React', 'Create Budget Track App', 'Create Gym Managment Portal Dashboard', 'Create Quizz App On History', 'Create Login Signup Screen'],
   HERO_HEADING: 'What do you want to build?',
   HERO_DESC: 'Prompt, run, edit, and deploy full-stack web apps.',
   INPUT_PLACEHOLDER: 'What you want to build?',
@@ -96,8 +96,8 @@ export default config;
       price:19.99
     },
     {
-      name:'Unlimted (License)',
-      tokens:'Unmited',
+      name:'Unlimited (License)',
+      tokens:'Unlimited',
       value:999999999,
       desc:'Designed for professionals who need to use Syntrix a few times per week.',
       price:49.99

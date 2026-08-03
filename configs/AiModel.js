@@ -14,7 +14,7 @@ const getModel = () => {
     
     // Only initialize if we have an API key (prevents build-time errors)
     if (!apiKey) {
-      console.warn("NEXT_PUBLIC_GEMINI_API_KEY is not set");
+      console.warn("GEMINI_API_KEY is not set. Check your .env.local file.");
       return null;
     }
     

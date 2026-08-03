@@ -5,7 +5,10 @@ import React, { useMemo } from "react";
 
 function ConvexClientProvider({ children }) {
   const convex = useMemo(() => {
-    const url = process.env.NEXT_PUBLIC_CONVEX_URL || "https://kindly-hedgehog-391.convex.cloud";
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+      throw new Error("NEXT_PUBLIC_CONVEX_URL is not set. Check your .env.local file.");
+    }
     return new ConvexReactClient(url);
   }, []);
 

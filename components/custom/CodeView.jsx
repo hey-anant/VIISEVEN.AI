@@ -67,7 +67,7 @@ const CodeView = () => {
     setLoading(true);
     try {
       const PROMPT = JSON.stringify(messages) + " " + Prompt.CODE_GEN_PROMPT;
-      const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000";
+      const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "";
       const result = await axios.post(`${SERVER_URL}/api/gen-ai-code`, {
         prompt: PROMPT
       });

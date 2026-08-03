@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡️ VIISEVEN
+# ⚡️ VIISEVEN.AI - AI-Powered Full-Stack Code Generation Platform
 
 <img src="./public/logo.svg" alt="VIISEVEN Logo" width="280" />
 

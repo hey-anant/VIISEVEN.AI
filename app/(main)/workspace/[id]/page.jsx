@@ -5,7 +5,7 @@ import React from 'react'
 
 export const dynamic = "force-dynamic";
 
-const workspace = () => {
+const Workspace = () => {
   return (
     <div className='p-3 pr-5 mt-3  ' >
         <div className='grid grid-cols-1 md:grid-cols-4 gap-10'  >
@@ -18,4 +18,4 @@ const workspace = () => {
   )
 }
 
-export default workspace
+export default Workspace
