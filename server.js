@@ -36,7 +36,7 @@ function parseGenerativeAiJson(rawText) {
 }
 
 app.get("/health", (req, res) => {
-    res.json({ status: "OK", server: "Syntrix Node.js Backend API" });
+    res.json({ status: "OK", server: "VIISEVEN Node.js Backend API" });
 });
 
 app.post("/api/ai-chat", async (req, res) => {
@@ -73,5 +73,5 @@ app.post("/api/gen-ai-code", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Syntrix Node.js Backend Server listening on http://localhost:${PORT}`);
+    console.log(`🚀 VIISEVEN Node.js Backend Server listening on http://localhost:${PORT}`);
 });

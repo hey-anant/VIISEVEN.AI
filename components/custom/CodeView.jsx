@@ -73,7 +73,7 @@ const CodeView = () => {
       const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "";
       const result = await axios.post(`${SERVER_URL}/api/gen-ai-code`, {
         prompt: PROMPT
-      });
+      }, { timeout: 120000 }); // 2 minute timeout for free models
       
       const aiResp = result.data;
       if (aiResp?.error) {
@@ -114,10 +114,12 @@ const CodeView = () => {
     } catch (error) {
       console.error("Error in GenerateAiCode:", error);
       const errMsg = error.response?.data?.error || error.message;
-      if (errMsg && (errMsg.includes("429") || errMsg.includes("quota"))) {
-        toast.error("Gemini API rate limit exceeded. Please wait a minute and try again.");
+      if (errMsg && (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("rate"))) {
+        toast.error("API rate limit exceeded. Please wait a minute and try again.");
+      } else if (errMsg && errMsg.includes("credits")) {
+        toast.error(errMsg);
       } else {
-        toast.error("Failed to generate code files. Please try again.");
+        toast.error("Code generation failed: " + (errMsg || "Unknown error"));
       }
     }
     setLoading(false);

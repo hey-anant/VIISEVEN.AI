@@ -29,7 +29,7 @@ const Header = () => {
   return (
     <div className='p-4 flex justify-between items-center'>
       <Link href={'/'}>
-        <Image src="/logo.svg" alt="Syntrix Logo" width={140} height={40} className="h-10 w-auto" priority />
+        <Image src="/logo.svg" alt="VIISEVEN Logo" width={140} height={40} className="h-10 w-auto" priority />
       </Link>
         {!userDetail?.name ? (
           <div className='flex gap-2'>

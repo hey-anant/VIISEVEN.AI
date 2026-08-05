@@ -17,7 +17,7 @@ function AppSideBar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-5">
-        <Image src="/logo.svg" alt="Syntrix Logo" width={140} height={40} className="h-10 w-auto" priority />
+        <Image src="/logo.svg" alt="VIISEVEN Logo" width={140} height={40} className="h-10 w-auto" priority />
         <Link href="/">
           <Button className="mt-3 w-full">
             <MessageCircleCode /> Start new chat

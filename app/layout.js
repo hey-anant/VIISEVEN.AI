@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Syntrix — AI-Powered Code Generation",
+  title: "VIISEVEN — AI-Powered Code Generation",
   description: "Generate, edit, and deploy full-stack React applications with AI — all inside your browser.",
 };
 
