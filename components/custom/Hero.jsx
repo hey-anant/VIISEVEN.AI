@@ -42,8 +42,7 @@ const Hero = () => {
       user: userDetail?._id,
       messages: [msg],
     });
-    console.log("workspaceId", workspaceId);
-    // router.push(`/workspace/${workspaceId}`)
+    // Navigate to the new workspace
     router.push("/workspace/" + workspaceId);
   };
   return (

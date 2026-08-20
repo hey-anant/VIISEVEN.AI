@@ -44,14 +44,12 @@ const ChatView = () => {
   }, [id]);
 
   const GetWorkspaceData = async () => {
-    // console.log("GetWorkspaceData called with id:", id) // Debug
 
     try {
       const result = await convex.query(api.workspace.GetWorkspace, {
         workspaceId: id,
       });
       setMessages(result?.messages || []);
-      // console.log(result);
     } catch (error) {
       console.error("Error fetching workspace data:", error);
       setMessages([]); // Reset messages on error

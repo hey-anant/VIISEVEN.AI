@@ -16,11 +16,10 @@ import { api } from "@/convex/_generated/api";
 import uuid4 from "uuid4";
 
 function Provider({ children }) {
-  // State for contexts
   const [messages, setMessages] = useState();
   const [userDetail, setUserDetail] = useState();
   const [action, setAction] = useState();
-  const router=useRouter();
+  const router = useRouter();
   const pathname = usePathname();
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID_KEY;
   const convex = useConvex();
@@ -48,19 +47,19 @@ function Provider({ children }) {
     }
   }, [userDetail]);
 
-
   // Auto-sync: if user has email but no Convex _id, fetch/create in Convex
   useEffect(() => {
     const syncUserWithConvex = async () => {
       if (!userDetail?.email || userDetail?._id) return;
+      
+      // Skip sync for guest users with local email
+      if (userDetail.email.endsWith("@viiseven.local")) return;
 
       try {
-        // Check if user already exists in Convex
         let dbUser = await convex.query(api.users.getUsers, {
           email: userDetail.email,
         });
 
-        // If not found, create them first
         if (!dbUser?._id) {
           await createUser({
             name: userDetail.name || '',
@@ -69,7 +68,6 @@ function Provider({ children }) {
             uid: uuid4(),
           });
 
-          // Fetch the newly created user
           dbUser = await convex.query(api.users.getUsers, {
             email: userDetail.email,
           });
@@ -85,7 +83,6 @@ function Provider({ children }) {
           if (typeof window !== 'undefined') {
             localStorage.setItem('user', JSON.stringify(syncedUser));
           }
-
         }
       } catch (error) {
         console.error('Error syncing user with Convex:', error);
@@ -105,9 +102,7 @@ function Provider({ children }) {
   const appTree = (
     <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
       <MessageContext.Provider value={{ messages, setMessages }}>
-        {/* FIX: Ensuring correct component capitalization (.Provider) */}
         <ActionContext.Provider value={{ action, setAction }}>
-          {/* 2. SidebarProvider must wrap components that use its context (Header, AppSideBar) */}
           <SidebarProvider defaultOpen={false}> 
             <NextThemesProvider
               attribute="class"
@@ -115,14 +110,10 @@ function Provider({ children }) {
               enableSystem
               disableTransitionOnChange
             >
-              {/* 3. Layout Fix: Define the full-screen structure (Header, Sidebar, Content) */}
               <div className="flex flex-col h-screen w-full">
-                {/* Header spans the top */}
                 <Header /> 
-                {/* Main content area: Sidebar and Page Content (takes up remaining height) */}
                 <div className="flex flex-1 overflow-hidden">
                   <AppSideBar />
-                  {/* Page Content: takes up remaining space and scrolls */}
                   <main className="flex-1 overflow-y-auto">
                     {children}
                   </main>
@@ -142,4 +133,4 @@ function Provider({ children }) {
   return <GoogleOAuthProvider clientId={googleClientId}>{appTree}</GoogleOAuthProvider>;
 }
 
-export default Provider;
+export default Provider;

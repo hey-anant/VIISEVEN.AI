@@ -69,3 +69,27 @@ export const GetAllWorkspace=query({
         return result;
     }
 })
+
+export const DeleteWorkspace=mutation({
+    args:{
+        workspaceId:v.id('workspace')
+    },
+    handler:async(ctx,args)=>{
+        await ctx.db.delete(args.workspaceId);
+    }
+})
+
+export const DeleteAllWorkspaces=mutation({
+    args:{
+        userId:v.id('users')
+    },
+    handler:async(ctx,args)=>{
+        const workspaces = await ctx.db.query('workspace')
+            .filter(q=>q.eq(q.field('user'),args.userId))
+            .collect();
+        
+        for(const workspace of workspaces){
+            await ctx.db.delete(workspace._id);
+        }
+    }
+})

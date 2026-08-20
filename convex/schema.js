@@ -6,7 +6,8 @@ export default defineSchema({
         email:v.string(),
         picture:v.string(),
         uid:v.string(),
-        token:v.optional(v.number())
+        token:v.optional(v.number()),
+        passwordHash:v.optional(v.string()),
     })
     .index("by_uid", ["uid"])
     .index("by_email", ["email"]),

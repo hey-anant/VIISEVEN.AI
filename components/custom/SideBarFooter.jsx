@@ -1,13 +1,15 @@
-import { Ghost, HelpCircle, LogOutIcon, Settings, Wallet } from "lucide-react";
-import React, { useContext } from "react";
+import { HelpCircle, LogOutIcon, Settings, Wallet } from "lucide-react";
+import React, { useContext, useState } from "react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { UserDetailContext } from "@/context/UserDetailContext";
 import { toast } from "sonner";
+import SettingsDialog from "./SettingsDialog";
 
 const SideBarFooter = () => {
   const router = useRouter();
   const { setUserDetail } = useContext(UserDetailContext);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const options = [
     {
@@ -30,8 +32,12 @@ const SideBarFooter = () => {
   ];
 
   const onOptionClick = (option) => {
+    if (option.name === "Settings") {
+      setSettingsOpen(true);
+      return;
+    }
+
     if (option.name === "Sign Out") {
-      // Clear user data from localStorage and context
       if (typeof window !== "undefined") {
         localStorage.removeItem("user");
       }
@@ -50,7 +56,7 @@ const SideBarFooter = () => {
 
   return (
     <div className="flex flex-col w-full gap-1">
-      {options.map((option, index) => (
+      {options.map((option) => (
         <Button
           key={option.name}
           variant="ghost"
@@ -60,6 +66,7 @@ const SideBarFooter = () => {
           <option.icon /> {option.name}
         </Button>
       ))}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };
