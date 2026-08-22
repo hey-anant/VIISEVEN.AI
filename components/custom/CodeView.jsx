@@ -4,7 +4,6 @@ import {
   SandpackProvider,
   SandpackLayout,
   SandpackCodeEditor,
-  SandpackPreview,
   SandpackFileExplorer,
 } from "@codesandbox/sandpack-react";
 import Lookup from "@/data/Lookup";
@@ -14,7 +13,7 @@ import Prompt from "@/data/Prompt";
 import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, Play, RefreshCw, Code as CodeIcon, Eye } from "lucide-react";
 import { countToken } from "./ChatView";
 import { UserDetailContext } from "@/context/UserDetailContext";
 import SandPackPreviewClient from "./SandPackPreviewClient";
@@ -22,63 +21,72 @@ import { ActionContext } from "@/context/ActionContext";
 import { toast } from "sonner";
 
 const CodeView = () => {
-  const { userDetail, setUserDetail } = useContext(UserDetailContext)
-  const [activeTab, setActiveTab] = useState('code')
-  const { id } = useParams()
-  const [files, setFiles] = useState(Lookup?.DEFAULT_FILE)
-  const { messages, setMessages } = useContext(MessageContext);
-  const UpdateFiles = useMutation(api.workspace.UpdateFiles)
+  const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const [activeTab, setActiveTab] = useState("preview");
+  const { id } = useParams();
+  const [files, setFiles] = useState(Lookup?.DEFAULT_FILE);
+  const { messages } = useContext(MessageContext);
+  const UpdateFiles = useMutation(api.workspace.UpdateFiles);
   const convex = useConvex();
-  const [loading, setLoading] = useState(false)
-  const UpdateTokens = useMutation(api.users.UpdateToken)
-  const { action, setAction } = useContext(ActionContext)
+  const [loading, setLoading] = useState(false);
+  const UpdateTokens = useMutation(api.users.UpdateToken);
+  const { action } = useContext(ActionContext);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    id && GetFiles()
-  }, [id])
+    if (id) {
+      GetFiles();
+    }
+  }, [id]);
 
   useEffect(() => {
-    setActiveTab('preview');
-  }, [action])
+    if (action) {
+      setActiveTab("preview");
+    }
+  }, [action]);
 
   const GetFiles = async () => {
-    setLoading(true)
-    const result = await convex.query(api.workspace.GetWorkspace, {
-      workspaceId: id
-    });
-    const mergedFiles = { ...Lookup.DEFAULT_FILE, ...result?.fileData }
-    setFiles(mergedFiles)
-    setLoading(false)
-  }
-
+    setLoading(true);
+    try {
+      const result = await convex.query(api.workspace.GetWorkspace, {
+        workspaceId: id,
+      });
+      if (result?.fileData && Object.keys(result.fileData).length > 0) {
+        const mergedFiles = { ...Lookup.DEFAULT_FILE, ...result.fileData };
+        setFiles(mergedFiles);
+      }
+    } catch (err) {
+      console.error("Error fetching workspace files:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (messages?.length > 0) {
-      const role = messages[messages?.length - 1].role;
-      if (role == 'user') {
-        // Stagger: delay code generation so ChatView's lighter API call
-        // fires first, reducing concurrent Gemini API pressure and 429s.
-        const timer = setTimeout(() => GenerateAiCode(), 2000);
+      const role = messages[messages.length - 1].role;
+      if (role === "user") {
+        const timer = setTimeout(() => GenerateAiCode(), 1000);
         return () => clearTimeout(timer);
       }
     }
-  }, [messages])
-
-
+  }, [messages]);
 
   const GenerateAiCode = async () => {
     setLoading(true);
     try {
       const PROMPT = JSON.stringify(messages) + " " + Prompt.CODE_GEN_PROMPT;
       const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "";
-      const result = await axios.post(`${SERVER_URL}/api/gen-ai-code`, {
-        prompt: PROMPT
-      }, { timeout: 120000 }); // 2 minute timeout for free models
-      
+      const result = await axios.post(
+        `${SERVER_URL}/api/gen-ai-code`,
+        { prompt: PROMPT },
+        { timeout: 120000 }
+      );
+
       const aiResp = result.data;
       if (aiResp?.error) {
         if (aiResp.error.includes("429") || aiResp.error.includes("quota")) {
-          toast.error("Gemini API rate limit exceeded. Please wait a minute and try again.");
+          toast.error("Gemini API rate limit exceeded. Please wait a moment and try again.");
         } else {
           toast.error("AI Error: " + aiResp.error);
         }
@@ -86,83 +94,143 @@ const CodeView = () => {
         return;
       }
 
-      const mergedFiles = { ...Lookup.DEFAULT_FILE, ...aiResp?.files };
-      setFiles(mergedFiles);
+      if (aiResp?.files && Object.keys(aiResp.files).length > 0) {
+        const mergedFiles = { ...Lookup.DEFAULT_FILE, ...aiResp.files };
+        setFiles(mergedFiles);
 
-      if (aiResp?.files) {
         await UpdateFiles({
           workspaceId: id,
-          files: aiResp.files
+          files: aiResp.files,
         });
+
+        // Automatically switch to preview to see running app
+        setActiveTab("preview");
+        setReloadKey((prev) => prev + 1);
+        toast.success("App code generated and running successfully!");
       }
 
-      setActiveTab('code');
       const token =
-        Number(userDetail?.token) - Number(countToken(JSON.stringify(aiResp)));
+        Number(userDetail?.token || 50000) -
+        Number(countToken(JSON.stringify(aiResp || {})));
 
       if (userDetail?._id) {
         await UpdateTokens({
-          userId: userDetail?._id,
+          userId: userDetail._id,
           token: token,
         });
       }
-      setUserDetail(prev => (prev ? ({
-        ...prev,
-        token: token
-      }) : prev));
-      setActiveTab('code');
+      setUserDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              token: token,
+            }
+          : prev
+      );
     } catch (error) {
       console.error("Error in GenerateAiCode:", error);
       const errMsg = error.response?.data?.error || error.message;
-      if (errMsg && (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("rate"))) {
-        toast.error("API rate limit exceeded. Please wait a minute and try again.");
-      } else if (errMsg && errMsg.includes("credits")) {
-        toast.error(errMsg);
-      } else {
-        toast.error("Code generation failed: " + (errMsg || "Unknown error"));
-      }
+      toast.error("Code generation failed: " + (errMsg || "Unknown error"));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-
-
+  const handleRunRefresh = () => {
+    setReloadKey((prev) => prev + 1);
+    setActiveTab("preview");
+    toast.success("Reloading preview...");
+  };
 
   return (
-    <div>
-      <div className="bg-[#181818] p-2 w-full border">
-        <div className="flex items-center flex-wrap shrink-0 bg-black p-1 px-2 rounded-full justify-center gap-3 w-[140px] "  >
-          <h2 className={`text-sm cursor-pointer ${activeTab == 'code' && 'text-blue-500  bg-blue-500/25 p-1 rounded-full'} `} onClick={() => { setActiveTab('code') }}>Code</h2>
-          <h2 className={`text-sm cursor-pointer ${activeTab == 'preview' && 'text-blue-500 bg-blue-500/25 p-1 rounded-full'} `} onClick={() => { setActiveTab('preview') }} >Preview</h2>
+    <div className="relative border border-zinc-800 rounded-xl overflow-hidden bg-[#0c0d10] shadow-xl">
+      {/* Top Header Bar */}
+      <div className="bg-[#121318] px-4 py-2.5 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-2">
+        {/* Tab Switcher */}
+        <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/5">
+          <button
+            onClick={() => setActiveTab("code")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              activeTab === "code"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <CodeIcon size={14} />
+            Code
+          </button>
+          <button
+            onClick={() => setActiveTab("preview")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              activeTab === "preview"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Eye size={14} />
+            Preview
+          </button>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRunRefresh}
+            className="flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer active:scale-95"
+            title="Re-run & refresh preview"
+          >
+            <Play size={13} className="fill-current" />
+            Run App
+          </button>
         </div>
       </div>
-      <SandpackProvider key={JSON.stringify(files)} files={files} template="react" theme={"dark"} customSetup={{
-        dependencies: {
-          ...Lookup.DEPENDANCY
-        }
-      }}
+
+      {/* Sandpack Provider & Layout */}
+      <SandpackProvider
+        key={`${JSON.stringify(files)}_${reloadKey}`}
+        files={files}
+        template="react"
+        theme="dark"
+        customSetup={{
+          dependencies: {
+            ...Lookup.DEPENDANCY,
+          },
+        }}
         options={{
-          externalResources: ['https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4']
-        }}   >
-        <SandpackLayout>
-          {activeTab == 'code' ? (<>
-
-            <SandpackFileExplorer style={{ height: "80vh" }} />
-            <SandpackCodeEditor style={{ height: "80vh" }} />
-
-          </>) : (
-
+          externalResources: ["https://cdn.tailwindcss.com"],
+        }}
+      >
+        <SandpackLayout className="!border-none !rounded-none">
+          {activeTab === "code" ? (
+            <>
+              <SandpackFileExplorer style={{ height: "78vh" }} />
+              <SandpackCodeEditor
+                style={{ height: "78vh" }}
+                showLineNumbers={true}
+                showInlineErrors={true}
+                wrapContent={true}
+              />
+            </>
+          ) : (
             <SandPackPreviewClient />
           )}
         </SandpackLayout>
       </SandpackProvider>
 
-      {loading && <div className="p-10 bg-gray-900 opacity-90 absolute top-0 rounded-lg w-full h-full flex items-center justify-center" >
-        <Loader2Icon className="animate-spin h-10 w-10 text-white " />
-        <h2 className="text-white">Generating your files...</h2>
-      </div>}
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
+          <Loader2Icon className="animate-spin h-10 w-10 text-blue-500" />
+          <h2 className="text-white font-medium text-base">
+            Generating and compiling your application...
+          </h2>
+          <p className="text-zinc-400 text-xs">
+            Writing React components, styling with Tailwind CSS, and mounting Sandpack runtime.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
 
-export default CodeView;
+export default CodeView;

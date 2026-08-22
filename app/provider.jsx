@@ -51,9 +51,6 @@ function Provider({ children }) {
   useEffect(() => {
     const syncUserWithConvex = async () => {
       if (!userDetail?.email || userDetail?._id) return;
-      
-      // Skip sync for guest users with local email
-      if (userDetail.email.endsWith("@viiseven.local")) return;
 
       try {
         let dbUser = await convex.query(api.users.getUsers, {
@@ -62,10 +59,10 @@ function Provider({ children }) {
 
         if (!dbUser?._id) {
           await createUser({
-            name: userDetail.name || '',
+            name: userDetail.name || "Guest User",
             email: userDetail.email,
-            picture: userDetail.picture || '',
-            uid: uuid4(),
+            picture: userDetail.picture || "",
+            uid: userDetail.uid || uuid4(),
           });
 
           dbUser = await convex.query(api.users.getUsers, {
@@ -80,12 +77,12 @@ function Provider({ children }) {
             token: dbUser.token ?? userDetail.token ?? 50000,
           };
           setUserDetail(syncedUser);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('user', JSON.stringify(syncedUser));
+          if (typeof window !== "undefined") {
+            localStorage.setItem("user", JSON.stringify(syncedUser));
           }
         }
       } catch (error) {
-        console.error('Error syncing user with Convex:', error);
+        console.error("Error syncing user with Convex:", error);
       }
     };
 

@@ -166,38 +166,48 @@ const ChatView = () => {
           </div>
         )}
       </div>
-      {/* {Input section} */}
-      <div className="flex gap-2 items-end">
+      {/* Input section */}
+      <div className="flex gap-2 items-end w-full">
         {userDetail?.picture && (
           <Image
             src={userDetail.picture}
             alt="user"
-            height={30}
-            width={30}
-            className="rounded-full cursor-pointer"
+            height={32}
+            width={32}
+            className="rounded-full cursor-pointer ring-1 ring-white/10 shrink-0 mb-2"
             onClick={toggleSidebar}
           />
         )}
-        <div
-          className="p-5 border rounded-xl max-w-xl w-full"
-          style={{ backgroundColor: Colors.BACKGROUND }}
-        >
-          <div className="flex gap-2 mt-3">
-            <textarea
-              placeholder={Lookup.INPUT_PLACEHOLDER}
-              value={userInput}
-              onChange={(event) => setUserInput(event.target.value)}
-              className="text-white outline-none bg-transparent w-full h-32 max-h-56 resize-none"
-            />
-            {userInput && (
-              <ArrowRight
-                onClick={() => onGenerate(userInput)}
-                className=" bg-blue-500 p-2 h-10 w-10 rounded-md  cursor-pointer hover:text-white transition"
-              />
-            )}
-          </div>
-          <div>
-            <Link className="h-5" />
+        <div className="p-3 border border-zinc-800 bg-[#131418] rounded-xl w-full flex flex-col justify-between focus-within:border-zinc-700 transition-colors">
+          <textarea
+            placeholder={Lookup.INPUT_PLACEHOLDER}
+            value={userInput}
+            onChange={(event) => setUserInput(event.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (userInput.trim()) {
+                  onGenerate(userInput);
+                }
+              }
+            }}
+            className="text-white outline-none bg-transparent w-full h-20 max-h-36 resize-none text-sm placeholder-zinc-500 leading-relaxed"
+          />
+          <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+            <span className="text-[11px] text-zinc-500 select-none">
+              Press Enter to send
+            </span>
+            <button
+              onClick={() => userInput.trim() && onGenerate(userInput)}
+              disabled={!userInput.trim() || loading}
+              className={`p-2 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                userInput.trim()
+                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-sm"
+                  : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+              }`}
+            >
+              <ArrowRight size={15} />
+            </button>
           </div>
         </div>
       </div>
