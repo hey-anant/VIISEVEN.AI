@@ -35,6 +35,18 @@ function parseGenerativeAiJson(rawText) {
     }
 }
 
+app.get("/", (req, res) => {
+    res.json({
+        status: "OK",
+        server: "VIISEVEN Node.js Backend API",
+        routes: [
+            "/health",
+            "/api/ai-chat",
+            "/api/gen-ai-code"
+        ]
+    });
+});
+
 app.get("/health", (req, res) => {
     res.json({ status: "OK", server: "VIISEVEN Node.js Backend API" });
 });

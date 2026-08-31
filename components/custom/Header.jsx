@@ -4,7 +4,7 @@ import { UserDetailContext } from '@/context/UserDetailContext'
 import { useSidebar } from '../ui/sidebar'
 import { usePathname } from 'next/navigation'
 import { ActionContext } from '@/context/ActionContext'
-import { LucideDownload, Rocket, UserCircle } from 'lucide-react'
+import { LucideDownload, Rocket, UserCircle, Menu } from 'lucide-react'
 import SignInDialog from './SignInDialog'
 import Logo from './Logo'
 import Image from 'next/image'
@@ -25,7 +25,17 @@ const Header = () => {
 
   return (
     <header className="px-6 py-4 flex justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-40">
-      <Logo />
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleSidebar}
+          className="text-gray-300 hover:text-white hover:bg-white/10"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+        <Logo />
+      </div>
       {!userDetail?.name ? (
         <div className="flex items-center gap-4">
           <button
