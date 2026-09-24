@@ -4,8 +4,9 @@ import { UserDetailContext } from '@/context/UserDetailContext'
 import { useSidebar } from '../ui/sidebar'
 import { usePathname } from 'next/navigation'
 import { ActionContext } from '@/context/ActionContext'
-import { LucideDownload, Rocket, UserCircle } from 'lucide-react'
+import { LucideDownload, Rocket, UserCircle, Github } from 'lucide-react'
 import SignInDialog from './SignInDialog'
+import GitHubPushDialog from './GitHubPushDialog'
 import Logo from './Logo'
 import Image from 'next/image'
 
@@ -15,6 +16,7 @@ const Header = () => {
   const { setAction } = useContext(ActionContext)
   const path = usePathname()
   const [openDialog, setOpenDialog] = useState(false)
+  const [openGitHubPush, setOpenGitHubPush] = useState(false)
 
   const onActionBtn = (action) => {
     setAction({
@@ -24,13 +26,13 @@ const Header = () => {
   }
 
   return (
-    <header className="px-6 py-4 flex justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-40">
+    <header className="px-6 py-4 flex justify-between items-center bg-background/80 backdrop-blur-md border-b border-border/40 sticky top-0 z-40">
       <Logo />
       {!userDetail?.name ? (
         <div className="flex items-center gap-4">
           <button
             onClick={() => setOpenDialog(true)}
-            className="text-sm font-medium text-gray-300 hover:text-white transition-colors cursor-pointer"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Sign in
           </button>
@@ -45,10 +47,28 @@ const Header = () => {
         <div className="flex gap-2 items-center">
           {path?.includes('workspace') && (
             <>
-              <Button variant="ghost" size="sm" onClick={() => onActionBtn('export')} className="text-gray-300 hover:text-white">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenGitHubPush(true)}
+                className="bg-[#24292e] text-white hover:bg-[#2f363d] border-transparent rounded-lg cursor-pointer"
+                title="Push project directly to GitHub"
+              >
+                <Github className="w-4 h-4 mr-1.5" /> Push to GitHub
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onActionBtn('export')}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <LucideDownload className="w-4 h-4 mr-1.5" /> Export
               </Button>
-              <Button size="sm" onClick={() => onActionBtn('deploy')} className="bg-[#0070f3] text-white hover:bg-[#0060df] rounded-lg">
+              <Button
+                size="sm"
+                onClick={() => onActionBtn('deploy')}
+                className="bg-[#0070f3] text-white hover:bg-[#0060df] rounded-lg shadow-sm"
+              >
                 <Rocket className="w-4 h-4 mr-1.5" /> Deploy
               </Button>
             </>
@@ -59,17 +79,22 @@ const Header = () => {
               alt="user"
               width={32}
               height={32}
-              className="rounded-full w-8 h-8 cursor-pointer ring-1 ring-white/20 hover:ring-white/50 transition-all"
+              className="rounded-full w-8 h-8 cursor-pointer ring-1 ring-border hover:ring-foreground/50 transition-all"
               onClick={toggleSidebar}
             />
           ) : (
             <button onClick={toggleSidebar} className="cursor-pointer">
-              <UserCircle size={30} className="text-gray-400 hover:text-white transition-colors" />
+              <UserCircle size={30} className="text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           )}
         </div>
       )}
       <SignInDialog openDialog={openDialog} closeDialog={setOpenDialog} />
+      <GitHubPushDialog
+        open={openGitHubPush}
+        onOpenChange={setOpenGitHubPush}
+        openSignIn={setOpenDialog}
+      />
     </header>
   )
 }

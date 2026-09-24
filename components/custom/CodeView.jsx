@@ -1,5 +1,5 @@
 "use client";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useMemo } from "react";
 import {
   SandpackProvider,
   SandpackLayout,
@@ -13,12 +13,52 @@ import Prompt from "@/data/Prompt";
 import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
-import { Loader2Icon, Play, RefreshCw, Code as CodeIcon, Eye } from "lucide-react";
+import { Loader2Icon, Play, Code as CodeIcon, Eye } from "lucide-react";
 import { countToken } from "./ChatView";
 import { UserDetailContext } from "@/context/UserDetailContext";
 import SandPackPreviewClient from "./SandPackPreviewClient";
 import { ActionContext } from "@/context/ActionContext";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
+
+function sanitizeSandpackFiles(rawFiles) {
+  if (!rawFiles || typeof rawFiles !== "object") {
+    return Lookup?.DEFAULT_FILE || {};
+  }
+
+  const clean = {};
+  for (const [key, val] of Object.entries(rawFiles)) {
+    if (!key || typeof key !== "string") continue;
+    let path = key.trim();
+    if (!path.startsWith("/")) {
+      path = "/" + path;
+    }
+
+    if (val === null || val === undefined) {
+      clean[path] = { code: "" };
+    } else if (typeof val === "string") {
+      clean[path] = { code: val };
+    } else if (typeof val === "object") {
+      clean[path] = {
+        code: typeof val.code === "string" ? val.code : String(val.code || ""),
+        ...(val.active ? { active: true } : {}),
+        ...(val.hidden ? { hidden: true } : {}),
+      };
+    }
+  }
+
+  // Fallback defaults if essential files are missing
+  if (!clean["/App.js"]) {
+    clean["/App.js"] = Lookup?.DEFAULT_FILE?.["/App.js"] || {
+      code: "export default function App() { return <div>App Loaded</div>; }",
+    };
+  }
+  if (!clean["/index.js"]) {
+    clean["/index.js"] = Lookup?.DEFAULT_FILE?.["/index.js"];
+  }
+
+  return clean;
+}
 
 const CodeView = () => {
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
@@ -32,6 +72,16 @@ const CodeView = () => {
   const UpdateTokens = useMutation(api.users.UpdateToken);
   const { action } = useContext(ActionContext);
   const [reloadKey, setReloadKey] = useState(0);
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const sanitizedFiles = useMemo(() => {
+    return sanitizeSandpackFiles(files);
+  }, [files]);
 
   useEffect(() => {
     if (id) {
@@ -53,7 +103,7 @@ const CodeView = () => {
       });
       if (result?.fileData && Object.keys(result.fileData).length > 0) {
         const mergedFiles = { ...Lookup.DEFAULT_FILE, ...result.fileData };
-        setFiles(mergedFiles);
+        setFiles(sanitizeSandpackFiles(mergedFiles));
       }
     } catch (err) {
       console.error("Error fetching workspace files:", err);
@@ -95,15 +145,15 @@ const CodeView = () => {
       }
 
       if (aiResp?.files && Object.keys(aiResp.files).length > 0) {
-        const mergedFiles = { ...Lookup.DEFAULT_FILE, ...aiResp.files };
+        const cleanGenerated = sanitizeSandpackFiles(aiResp.files);
+        const mergedFiles = { ...Lookup.DEFAULT_FILE, ...cleanGenerated };
         setFiles(mergedFiles);
 
         await UpdateFiles({
           workspaceId: id,
-          files: aiResp.files,
+          files: cleanGenerated,
         });
 
-        // Automatically switch to preview to see running app
         setActiveTab("preview");
         setReloadKey((prev) => prev + 1);
         toast.success("App code generated and running successfully!");
@@ -142,18 +192,21 @@ const CodeView = () => {
     toast.success("Reloading preview...");
   };
 
+  // Prevent SSR hydration mismatch from dynamic client theme resolution
+  const sandpackTheme = mounted && resolvedTheme === "light" ? "light" : "dark";
+
   return (
-    <div className="relative border border-zinc-800 rounded-xl overflow-hidden bg-[#0c0d10] shadow-xl">
+    <div className="relative border border-border rounded-xl overflow-hidden bg-background shadow-xl">
       {/* Top Header Bar */}
-      <div className="bg-[#121318] px-4 py-2.5 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-card px-4 py-2.5 border-b border-border flex items-center justify-between flex-wrap gap-2">
         {/* Tab Switcher */}
-        <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/5">
+        <div className="flex items-center bg-muted p-1 rounded-xl border border-border">
           <button
             onClick={() => setActiveTab("code")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
               activeTab === "code"
                 ? "bg-blue-600 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <CodeIcon size={14} />
@@ -164,7 +217,7 @@ const CodeView = () => {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
               activeTab === "preview"
                 ? "bg-blue-600 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Eye size={14} />
@@ -176,7 +229,7 @@ const CodeView = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={handleRunRefresh}
-            className="flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer active:scale-95"
             title="Re-run & refresh preview"
           >
             <Play size={13} className="fill-current" />
@@ -186,45 +239,53 @@ const CodeView = () => {
       </div>
 
       {/* Sandpack Provider & Layout */}
-      <SandpackProvider
-        key={`${JSON.stringify(files)}_${reloadKey}`}
-        files={files}
-        template="react"
-        theme="dark"
-        customSetup={{
-          dependencies: {
-            ...Lookup.DEPENDANCY,
-          },
-        }}
-        options={{
-          externalResources: ["https://cdn.tailwindcss.com"],
-        }}
-      >
-        <SandpackLayout className="!border-none !rounded-none">
-          {activeTab === "code" ? (
-            <>
-              <SandpackFileExplorer style={{ height: "78vh" }} />
-              <SandpackCodeEditor
-                style={{ height: "78vh" }}
-                showLineNumbers={true}
-                showInlineErrors={true}
-                wrapContent={true}
-              />
-            </>
-          ) : (
-            <SandPackPreviewClient />
-          )}
-        </SandpackLayout>
-      </SandpackProvider>
+      {!mounted ? (
+        <div className="h-[78vh] flex items-center justify-center text-muted-foreground text-sm">
+          Loading editor...
+        </div>
+      ) : (
+        <SandpackProvider
+          key={`${reloadKey}_${sandpackTheme}`}
+          files={sanitizedFiles}
+          template="react"
+          theme={sandpackTheme}
+          customSetup={{
+            dependencies: {
+              ...Lookup.DEPENDANCY,
+            },
+          }}
+          options={{
+            activeFile: "/App.js",
+            visibleFiles: ["/App.js", "/styles.css"],
+            externalResources: ["https://cdn.tailwindcss.com"],
+          }}
+        >
+          <SandpackLayout className="!border-none !rounded-none">
+            {activeTab === "code" ? (
+              <>
+                <SandpackFileExplorer style={{ height: "78vh" }} />
+                <SandpackCodeEditor
+                  style={{ height: "78vh" }}
+                  showLineNumbers={true}
+                  showInlineErrors={true}
+                  wrapContent={true}
+                />
+              </>
+            ) : (
+              <SandPackPreviewClient />
+            )}
+          </SandpackLayout>
+        </SandpackProvider>
+      )}
 
       {/* Loading Overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
           <Loader2Icon className="animate-spin h-10 w-10 text-blue-500" />
-          <h2 className="text-white font-medium text-base">
+          <h2 className="text-foreground font-medium text-base">
             Generating and compiling your application...
           </h2>
-          <p className="text-zinc-400 text-xs">
+          <p className="text-muted-foreground text-xs">
             Writing React components, styling with Tailwind CSS, and mounting Sandpack runtime.
           </p>
         </div>
@@ -233,4 +294,4 @@ const CodeView = () => {
   );
 };
 
-export default CodeView;
+export default CodeView;

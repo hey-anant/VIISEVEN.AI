@@ -18,12 +18,11 @@ import {
   Monitor,
   Trash2,
   Download,
+  AlertTriangle,
+  Loader2,
   Palette,
   History,
   FileArchive,
-  Loader2,
-  CheckCircle2,
-  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
@@ -34,23 +33,18 @@ const ThemeOption = ({ icon: Icon, label, value, currentTheme, onClick }) => {
   return (
     <button
       onClick={() => onClick(value)}
-      className={`
-        flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer
-        ${
-          isActive
-            ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10 scale-105"
-            : "border-transparent bg-white/5 hover:bg-white/10 hover:border-white/20"
-        }
-      `}
+      className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+        isActive
+          ? "border-blue-500 bg-blue-500/10 shadow-sm"
+          : "border-border bg-card hover:bg-accent text-muted-foreground hover:text-foreground"
+      }`}
     >
       <Icon
-        size={24}
-        className={`transition-colors duration-300 ${
-          isActive ? "text-blue-500" : "text-muted-foreground"
-        }`}
+        size={22}
+        className={isActive ? "text-blue-500" : "text-muted-foreground"}
       />
       <span
-        className={`text-sm font-medium transition-colors duration-300 ${
+        className={`text-xs font-medium ${
           isActive ? "text-blue-500" : "text-muted-foreground"
         }`}
       >
@@ -119,7 +113,6 @@ const SettingsDialog = ({ open, onOpenChange }) => {
       const files = workspace.fileData;
 
       Object.entries(files).forEach(([filePath, fileData]) => {
-        // Remove leading slash for zip path
         const cleanPath = filePath.startsWith("/")
           ? filePath.slice(1)
           : filePath;
@@ -143,11 +136,11 @@ const SettingsDialog = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] border-white/10 bg-background/95 backdrop-blur-xl">
+      <DialogContent className="sm:max-w-[480px] border-border bg-card text-card-foreground backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20">
-              <Palette size={20} className="text-blue-500" />
+          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+              <Palette size={20} />
             </div>
             Settings
           </DialogTitle>
@@ -156,7 +149,7 @@ const SettingsDialog = ({ open, onOpenChange }) => {
         <div className="space-y-6 mt-4">
           {/* ─── Theme Section ─── */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <Palette size={14} />
               Appearance
             </div>
@@ -186,18 +179,18 @@ const SettingsDialog = ({ open, onOpenChange }) => {
           </div>
 
           {/* ─── Divider ─── */}
-          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="h-px bg-border" />
 
           {/* ─── Delete History Section ─── */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <History size={14} />
               Chat History
             </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
               <div>
-                <p className="text-sm font-medium">Delete all history</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-sm font-medium text-foreground">Delete all history</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Permanently remove all your workspace chats
                 </p>
               </div>
@@ -207,9 +200,7 @@ const SettingsDialog = ({ open, onOpenChange }) => {
                 onClick={handleDeleteAllHistory}
                 disabled={deletingAll || !userDetail?._id}
                 className={`transition-all duration-300 cursor-pointer ${
-                  confirmDelete
-                    ? "bg-red-500/90 hover:bg-red-600 border-red-500 animate-pulse"
-                    : ""
+                  confirmDelete ? "animate-pulse" : ""
                 }`}
               >
                 {deletingAll ? (
@@ -228,21 +219,21 @@ const SettingsDialog = ({ open, onOpenChange }) => {
           </div>
 
           {/* ─── Divider ─── */}
-          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="h-px bg-border" />
 
           {/* ─── Export Files Section ─── */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <FileArchive size={14} />
               Export
             </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
               <div>
-                <p className="text-sm font-medium">Download project files</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-sm font-medium text-foreground">Download project files</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {isWorkspacePage
-                    ? "Export current workspace as a ZIP file"
-                    : "Open a workspace first to export files"}
+                    ? "Export current workspace as a ZIP archive"
+                    : "Open a workspace to export files"}
                 </p>
               </div>
               <Button

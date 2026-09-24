@@ -95,27 +95,27 @@ const Hero = () => {
     <div className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center px-4 -mt-10">
       <div className="flex flex-col items-center text-center max-w-3xl w-full">
         {/* Main Heading */}
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
           {Lookup.HERO_HEADING}
         </h1>
         {/* Subheading */}
-        <p className="text-gray-400 text-base sm:text-lg mt-3 font-normal">
+        <p className="text-muted-foreground text-base sm:text-lg mt-3 font-normal">
           {Lookup.HERO_DESC}
         </p>
 
         {/* Input Card Container */}
-        <div className="mt-8 w-full max-w-2xl bg-[#131418] border border-[#23252e] rounded-2xl p-5 shadow-2xl text-left flex flex-col justify-between min-h-[180px] focus-within:border-gray-600 transition-colors">
+        <div className="mt-8 w-full max-w-2xl bg-card border border-border rounded-2xl p-5 shadow-2xl dark:shadow-black/40 text-left flex flex-col justify-between min-h-[180px] focus-within:border-muted-foreground/40 transition-colors">
           <textarea
             placeholder={Lookup.INPUT_PLACEHOLDER}
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-transparent text-white placeholder-gray-500 outline-none resize-none text-base h-28 leading-relaxed"
+            className="w-full bg-transparent text-foreground placeholder-muted-foreground outline-none resize-none text-base h-28 leading-relaxed"
           />
 
           {/* Card Bottom Bar */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
-            <span className="text-xs text-gray-500 font-normal select-none">
+          <div className="flex items-center justify-between pt-3 border-t border-border/40">
+            <span className="text-xs text-muted-foreground font-normal select-none">
               Press the arrow to generate
             </span>
             <button
@@ -124,7 +124,7 @@ const Hero = () => {
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                 userInput.trim()
                   ? "bg-[#1652f0] hover:bg-[#1244cc] text-white shadow-md shadow-blue-500/20 active:scale-95"
-                  : "bg-[#1a2b4c] text-blue-400 hover:bg-[#1652f0] hover:text-white"
+                  : "bg-blue-100 dark:bg-[#1a2b4c] text-blue-500 dark:text-blue-400 hover:bg-[#1652f0] hover:text-white"
               }`}
             >
               <ArrowRight size={18} />
@@ -138,13 +138,13 @@ const Hero = () => {
           <div className="flex flex-wrap justify-center gap-2.5">
             <button
               onClick={() => onGenerate(Lookup.SUGGESTIONS[0])}
-              className="px-4 py-2 border border-[#272a34] bg-[#14151b]/70 hover:bg-[#1f212a] hover:border-gray-600 rounded-full text-xs sm:text-sm text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-border bg-card/70 hover:bg-accent hover:border-border rounded-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
               {Lookup.SUGGESTIONS[0]}
             </button>
             <button
               onClick={() => onGenerate(Lookup.SUGGESTIONS[1])}
-              className="px-4 py-2 border border-[#272a34] bg-[#14151b]/70 hover:bg-[#1f212a] hover:border-gray-600 rounded-full text-xs sm:text-sm text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-border bg-card/70 hover:bg-accent hover:border-border rounded-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
               {Lookup.SUGGESTIONS[1]}
             </button>
@@ -154,13 +154,13 @@ const Hero = () => {
           <div className="flex flex-wrap justify-center gap-2.5">
             <button
               onClick={() => onGenerate(Lookup.SUGGESTIONS[2])}
-              className="px-4 py-2 border border-[#272a34] bg-[#14151b]/70 hover:bg-[#1f212a] hover:border-gray-600 rounded-full text-xs sm:text-sm text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-border bg-card/70 hover:bg-accent hover:border-border rounded-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
               {Lookup.SUGGESTIONS[2]}
             </button>
             <button
               onClick={() => onGenerate(Lookup.SUGGESTIONS[3])}
-              className="px-4 py-2 border border-[#272a34] bg-[#14151b]/70 hover:bg-[#1f212a] hover:border-gray-600 rounded-full text-xs sm:text-sm text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-border bg-card/70 hover:bg-accent hover:border-border rounded-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
               {Lookup.SUGGESTIONS[3]}
             </button>
@@ -170,7 +170,7 @@ const Hero = () => {
           <div className="flex flex-wrap justify-center gap-2.5">
             <button
               onClick={() => onGenerate(Lookup.SUGGESTIONS[4])}
-              className="px-4 py-2 border border-[#272a34] bg-[#14151b]/70 hover:bg-[#1f212a] hover:border-gray-600 rounded-full text-xs sm:text-sm text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-border bg-card/70 hover:bg-accent hover:border-border rounded-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
               {Lookup.SUGGESTIONS[4]}
             </button>
@@ -187,4 +187,3 @@ const Hero = () => {
 };
 
 export default Hero;
-

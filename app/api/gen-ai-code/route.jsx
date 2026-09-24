@@ -10,12 +10,10 @@ function parseGenerativeAiJson(rawText) {
     }
     cleaned = cleaned.trim();
 
-    // Attempt 1: Direct parse
     try {
         return JSON.parse(cleaned);
-    } catch (_) { /* continue */ }
+    } catch (_) {}
 
-    // Attempt 2: Extract JSON object bounded by outermost { and }
     try {
         const firstBrace = cleaned.indexOf('{');
         const lastBrace = cleaned.lastIndexOf('}');
@@ -23,9 +21,8 @@ function parseGenerativeAiJson(rawText) {
             const jsonSubstring = cleaned.substring(firstBrace, lastBrace + 1);
             return JSON.parse(jsonSubstring);
         }
-    } catch (_) { /* continue */ }
+    } catch (_) {}
 
-    // Attempt 3: Repair unescaped newlines/tabs inside string literals
     try {
         const repaired = cleaned
             .replace(/\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})/g, "\\\\")
@@ -36,9 +33,8 @@ function parseGenerativeAiJson(rawText) {
                 return '';
             });
         return JSON.parse(repaired);
-    } catch (_) { /* continue */ }
+    } catch (_) {}
 
-    // Attempt 4: Truncated JSON repair — close unclosed quotes, brackets, braces
     try {
         let truncated = cleaned;
         const quoteCount = (truncated.match(/(?<!\\)"/g) || []).length;
@@ -65,24 +61,20 @@ function parseGenerativeAiJson(rawText) {
         for (let i = 0; i < braces; i++) truncated += '}';
         
         return JSON.parse(truncated);
-    } catch (_) { /* continue */ }
+    } catch (_) {}
 
     throw new Error("Failed to parse AI response as valid JSON.");
 }
 
-/**
- * Normalizes file structure for Sandpack React template compatibility:
- * 1. Ensures paths start with leading '/'
- * 2. Strips /src/ prefix so Sandpack root can locate them
- * 3. Guarantees /App.js exists (aliasing /App.jsx, /App.tsx, or /src/App.js if needed)
- * 4. Ensures /styles.css exists
- */
 function normalizeFiles(files) {
     if (!files || typeof files !== "object") return {};
     const normalized = {};
     
     for (const [rawPath, value] of Object.entries(files)) {
+        if (!rawPath || typeof rawPath !== "string") continue;
         let path = rawPath.trim();
+        if (!path || path === "null" || path === "undefined") continue;
+
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
@@ -102,7 +94,6 @@ function normalizeFiles(files) {
         normalized[path] = { code };
     }
 
-    // If /App.jsx or /App.tsx was generated instead of /App.js, alias it to /App.js
     if (!normalized["/App.js"]) {
         if (normalized["/App.jsx"]) {
             normalized["/App.js"] = { code: normalized["/App.jsx"].code };
@@ -113,7 +104,6 @@ function normalizeFiles(files) {
         }
     }
 
-    // Ensure /styles.css exists for Tailwind styling
     if (!normalized["/styles.css"]) {
         if (normalized["/index.css"]) {
             normalized["/styles.css"] = { code: normalized["/index.css"].code };
@@ -126,14 +116,12 @@ function normalizeFiles(files) {
         }
     }
 
-    // Ensure /index.js exists
     if (!normalized["/index.js"]) {
         normalized["/index.js"] = {
             code: `import React, { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";\nimport "./styles.css";\nimport App from "./App";\n\nconst root = createRoot(document.getElementById("root"));\nroot.render(\n  <StrictMode>\n    <App />\n  </StrictMode>\n);`
         };
     }
 
-    // Ensure /public/index.html exists with Tailwind CDN
     if (!normalized["/public/index.html"]) {
         normalized["/public/index.html"] = {
             code: `<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>VIISEVEN Preview</title>\n    <script src="https://cdn.tailwindcss.com"></script>\n  </head>\n  <body class="bg-gray-950 text-white antialiased min-h-screen">\n    <div id="root"></div>\n  </body>\n</html>`
@@ -146,19 +134,14 @@ function normalizeFiles(files) {
 export async function POST(req) {
     try {
         const { prompt } = await req.json();
-        console.log("[gen-ai-code] Generating code with prompt length:", prompt?.length);
-        
         const result = await GenAiCode.sendMessage(prompt);
         const resp = result.response.text();
-        console.log("[gen-ai-code] Raw response length:", resp?.length);
-        
         const parsed = parseGenerativeAiJson(resp);
         
         if (parsed.files) {
             parsed.files = normalizeFiles(parsed.files);
         }
         
-        console.log("[gen-ai-code] Successfully generated files:", Object.keys(parsed.files || {}));
         return NextResponse.json(parsed);
     } catch (e) {
         console.error("[gen-ai-code] ERROR:", e.message);

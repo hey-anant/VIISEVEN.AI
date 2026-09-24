@@ -6,14 +6,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import Lookup from "@/data/Lookup";
 import { Button } from "../ui/button";
-import { useGoogleLogin } from "@react-oauth/google";
-import axios from "axios";
+import Lookup from "@/data/Lookup";
 import { UserDetailContext } from "@/context/UserDetailContext";
-import { toast } from "sonner";
-import { useMutation, useConvex } from "convex/react";
+import axios from "axios";
+import { useGoogleLogin } from "@react-oauth/google";
+import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 import uuid4 from "uuid4";
 import { Input } from "../ui/input";
 import {
@@ -25,9 +25,9 @@ import {
   ArrowLeft,
   Loader2,
   Chrome,
+  Github,
 } from "lucide-react";
 
-// ─── Hash password using SHA-256 (browser-native) ───
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + "__VIISEVEN_SALT__");
@@ -44,18 +44,18 @@ const GoogleSignInContent = ({ closeDialog, onBack }) => {
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      const userInfo = await axios.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        {
-          headers: {
-            Authorization: "Bearer " + tokenResponse?.access_token,
-          },
-        }
-      );
-
-      const user = userInfo.data;
-
       try {
+        const userInfo = await axios.get(
+          "https://www.googleapis.com/oauth2/v3/userinfo",
+          {
+            headers: {
+              Authorization: "Bearer " + tokenResponse?.access_token,
+            },
+          }
+        );
+
+        const user = userInfo.data;
+
         await createUser({
           name: user?.name,
           email: user?.email,
@@ -103,16 +103,147 @@ const GoogleSignInContent = ({ closeDialog, onBack }) => {
       >
         <ArrowLeft size={14} /> Back
       </button>
-      <h2 className="font-bold text-center text-xl">Sign in with Google</h2>
+      <h2 className="font-bold text-center text-xl text-foreground">Sign in with Google</h2>
       <p className="text-center text-sm text-muted-foreground">
         Use your Google account to sign in instantly
       </p>
       <Button
-        className="bg-blue-500 text-white hover:bg-blue-400 mt-2 cursor-pointer"
+        className="bg-blue-600 text-white hover:bg-blue-500 mt-2 cursor-pointer"
         onClick={googleLogin}
       >
         <Chrome size={18} />
         Continue with Google
+      </Button>
+      <p className="text-xs text-muted-foreground text-center mt-1">
+        {Lookup?.SIGNIn_AGREEMENT_TEXT}
+      </p>
+    </div>
+  );
+};
+
+// ─── GitHub Sign In / Up ───
+const GitHubSignInContent = ({ closeDialog, onBack }) => {
+  const { setUserDetail } = useContext(UserDetailContext);
+  const createUser = useMutation(api.users.createUser);
+  const convex = useConvex();
+  const [loading, setLoading] = useState(false);
+
+  const handleGitHubLogin = () => {
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      toast.error("GitHub OAuth is pending configuration. Add NEXT_PUBLIC_GITHUB_CLIENT_ID to .env.local");
+      return;
+    }
+
+    const state = uuid4();
+    if (typeof window !== "undefined") {
+      localStorage.setItem("github_oauth_state", state);
+    }
+
+    const redirectUri = `${window.location.origin}/api/auth/github/callback`;
+    const scope = "user:email repo";
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&scope=${encodeURIComponent(scope)}&state=${state}`;
+
+    const width = 550;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      authUrl,
+      "github-oauth",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+    );
+
+    setLoading(true);
+
+    const handleMessage = async (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "github-oauth-callback") return;
+
+      window.removeEventListener("message", handleMessage);
+
+      const { code, error } = event.data;
+      if (error || !code) {
+        toast.error("GitHub sign-in was cancelled or encountered an error.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await axios.post("/api/auth/github", { code });
+        const githubUser = response.data.user;
+
+        await createUser({
+          name: githubUser.name,
+          email: githubUser.email,
+          picture: githubUser.picture,
+          uid: uuid4(),
+        });
+
+        const dbUser = await convex.query(api.users.getUsers, {
+          email: githubUser.email,
+        });
+
+        const activeUser = {
+          name: dbUser?.name || githubUser.name,
+          email: dbUser?.email || githubUser.email,
+          picture: dbUser?.picture || githubUser.picture,
+          token: dbUser?.token ?? 50000,
+          _id: dbUser?._id,
+          githubUsername: githubUser.githubUsername,
+          githubAccessToken: githubUser.githubAccessToken,
+        };
+
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(activeUser));
+        }
+
+        setUserDetail(activeUser);
+        closeDialog(false);
+        toast.success(`Welcome, ${activeUser.name}! GitHub connected 🐙`);
+      } catch (err) {
+        console.error("GitHub auth error:", err);
+        toast.error("GitHub sign-in failed. Please verify your credentials.");
+      }
+      setLoading(false);
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    const pollTimer = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(pollTimer);
+        window.removeEventListener("message", handleMessage);
+        setLoading(false);
+      }
+    }, 1000);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer self-start"
+      >
+        <ArrowLeft size={14} /> Back
+      </button>
+      <h2 className="font-bold text-center text-xl text-foreground">Sign in with GitHub</h2>
+      <p className="text-center text-sm text-muted-foreground">
+        Connect your GitHub account to directly push projects to repositories
+      </p>
+      <Button
+        className="bg-[#24292e] text-white hover:bg-[#2f363d] mt-2 cursor-pointer shadow-md"
+        onClick={handleGitHubLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <Loader2 size={18} className="animate-spin" />
+        ) : (
+          <Github size={18} />
+        )}
+        Continue with GitHub
       </Button>
       <p className="text-xs text-muted-foreground text-center mt-1">
         {Lookup?.SIGNIn_AGREEMENT_TEXT}
@@ -126,7 +257,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
   const { setUserDetail } = useContext(UserDetailContext);
   const signUpWithEmail = useMutation(api.users.signUpWithEmail);
   const convex = useConvex();
-  const [mode, setMode] = useState("signin"); // "signin" | "signup"
+  const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
@@ -162,7 +293,6 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
 
     try {
       if (mode === "signup") {
-        // Sign Up
         try {
           await signUpWithEmail({
             name: form.name,
@@ -182,7 +312,6 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
           throw err;
         }
 
-        // Fetch the created user
         const dbUser = await convex.query(api.users.getUsers, {
           email: form.email,
         });
@@ -206,9 +335,8 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
         }
         setUserDetail(activeUser);
         closeDialog(false);
-        toast.success("Account created successfully! Welcome to VIISEVEN 🎉");
+        toast.success("Account created successfully! Welcome 🎉");
       } else {
-        // Sign In
         const result = await convex.query(api.users.signInWithEmail, {
           email: form.email,
           passwordHash,
@@ -217,15 +345,11 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
         if (result?.error) {
           switch (result.error) {
             case "NOT_FOUND":
-              toast.error(
-                "No account found with this email. Please sign up first."
-              );
+              toast.error("No account found with this email. Please sign up.");
               setMode("signup");
               break;
             case "GOOGLE_ACCOUNT":
-              toast.error(
-                "This account was created with Google. Please use Google Sign-In."
-              );
+              toast.error("This account uses Google OAuth. Please sign in with Google.");
               break;
             case "WRONG_PASSWORD":
               toast.error("Incorrect password. Please try again.");
@@ -267,7 +391,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
       >
         <ArrowLeft size={14} /> Back
       </button>
-      <h2 className="font-bold text-center text-xl">
+      <h2 className="font-bold text-center text-xl text-foreground">
         {mode === "signin" ? "Sign in with Email" : "Create Account"}
       </h2>
       <p className="text-center text-sm text-muted-foreground">
@@ -287,7 +411,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
               placeholder="Full Name"
               value={form.name}
               onChange={handleChange("name")}
-              className="pl-10"
+              className="pl-10 bg-background text-foreground border-border"
             />
           </div>
         )}
@@ -302,7 +426,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
             placeholder="Email address"
             value={form.email}
             onChange={handleChange("email")}
-            className="pl-10"
+            className="pl-10 bg-background text-foreground border-border"
           />
         </div>
 
@@ -316,7 +440,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
             placeholder="Password (min 6 characters)"
             value={form.password}
             onChange={handleChange("password")}
-            className="pl-10 pr-10"
+            className="pl-10 pr-10 bg-background text-foreground border-border"
           />
           <button
             type="button"
@@ -330,7 +454,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
         <Button
           type="submit"
           disabled={loading}
-          className="bg-blue-500 text-white hover:bg-blue-400 mt-1 cursor-pointer"
+          className="bg-blue-600 text-white hover:bg-blue-500 mt-1 cursor-pointer"
         >
           {loading ? (
             <Loader2 size={18} className="animate-spin" />
@@ -363,7 +487,7 @@ const EmailAuthContent = ({ closeDialog, onBack }) => {
 // ─── Main Sign In Dialog ───
 const SignInDialog = ({ openDialog, closeDialog }) => {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID_KEY;
-  const [view, setView] = useState("choose"); // "choose" | "google" | "email"
+  const [view, setView] = useState("choose");
 
   const handleOpenChange = (open) => {
     if (!open) {
@@ -374,13 +498,13 @@ const SignInDialog = ({ openDialog, closeDialog }) => {
 
   return (
     <Dialog open={openDialog} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[420px] border-white/10 bg-background/95 backdrop-blur-xl">
+      <DialogContent className="sm:max-w-[420px] border-border bg-card text-card-foreground backdrop-blur-xl">
         <DialogHeader>
           <DialogTitle></DialogTitle>
 
           {view === "choose" && (
             <div className="flex flex-col justify-center gap-4">
-              <h2 className="font-bold text-center text-2xl">
+              <h2 className="font-bold text-center text-2xl text-foreground">
                 {Lookup.SIGNIN_HEADING}
               </h2>
               <p className="text-center text-muted-foreground text-sm">
@@ -389,26 +513,26 @@ const SignInDialog = ({ openDialog, closeDialog }) => {
 
               {/* ─── Auth Options ─── */}
               <div className="flex flex-col gap-3 mt-2">
-                {/* Email Sign In */}
+                {/* GitHub Sign In */}
                 <Button
                   variant="outline"
-                  className="w-full h-12 text-sm cursor-pointer justify-start gap-3 px-4"
-                  onClick={() => setView("email")}
+                  className="w-full h-12 text-sm cursor-pointer justify-start gap-3 px-4 bg-[#24292e] text-white hover:bg-[#2f363d] hover:text-white border-transparent"
+                  onClick={() => setView("github")}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center shrink-0">
-                    <Mail size={16} className="text-blue-500" />
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <Github size={18} className="text-white" />
                   </div>
-                  Continue with Email
+                  Continue with GitHub
                 </Button>
 
                 {/* Google Sign In */}
                 {googleClientId && (
                   <Button
                     variant="outline"
-                    className="w-full h-12 text-sm cursor-pointer justify-start gap-3 px-4"
+                    className="w-full h-12 text-sm cursor-pointer justify-start gap-3 px-4 border-border bg-background hover:bg-accent text-foreground"
                     onClick={() => setView("google")}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500/10 to-yellow-500/10 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
                       <svg width="16" height="16" viewBox="0 0 24 24">
                         <path
                           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -432,13 +556,25 @@ const SignInDialog = ({ openDialog, closeDialog }) => {
                   </Button>
                 )}
 
+                {/* Email Sign In */}
+                <Button
+                  variant="outline"
+                  className="w-full h-12 text-sm cursor-pointer justify-start gap-3 px-4 border-border bg-background hover:bg-accent text-foreground"
+                  onClick={() => setView("email")}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                    <Mail size={16} className="text-blue-500" />
+                  </div>
+                  Continue with Email
+                </Button>
+
                 {/* Guest Mode */}
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10"></div>
+                    <div className="w-full border-t border-border"></div>
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-background px-2 text-muted-foreground">
+                    <span className="bg-card px-2 text-muted-foreground">
                       or
                     </span>
                   </div>
@@ -448,7 +584,6 @@ const SignInDialog = ({ openDialog, closeDialog }) => {
                   variant="ghost"
                   className="w-full text-sm cursor-pointer text-muted-foreground hover:text-foreground"
                   onClick={() => {
-                    // Guest mode — create a local-only session
                     const guestUser = {
                       name: "Guest User",
                       email: `guest_${Date.now()}@viiseven.local`,
@@ -458,8 +593,6 @@ const SignInDialog = ({ openDialog, closeDialog }) => {
                     if (typeof window !== "undefined") {
                       localStorage.setItem("user", JSON.stringify(guestUser));
                     }
-                    // We need to set userDetail from context
-                    // This will trigger the auto-sync in provider.jsx
                     window.location.reload();
                   }}
                 >
@@ -475,6 +608,13 @@ const SignInDialog = ({ openDialog, closeDialog }) => {
 
           {view === "google" && googleClientId && (
             <GoogleSignInContent
+              closeDialog={closeDialog}
+              onBack={() => setView("choose")}
+            />
+          )}
+
+          {view === "github" && (
+            <GitHubSignInContent
               closeDialog={closeDialog}
               onBack={() => setView("choose")}
             />
