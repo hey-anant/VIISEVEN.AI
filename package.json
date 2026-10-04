@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "server": "node --env-file=.env.local server.js",
-    "build": "npx convex deploy --yes --cmd \"npm run build:next\"",
-    "build:next": "next build",
+    "build": "next build",
+    "convex:deploy": "npx convex deploy",
     "start": "next start"
   },
   "dependencies": {
