@@ -163,4 +163,6 @@ npm start
 
 ---
 
+### Open to contributions, Feel free to open an issue or submit a PR.
+
 
