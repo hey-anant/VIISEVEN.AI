@@ -1,7 +1,7 @@
 /**
- * AI Model Configuration — Hybrid (Google Gemini Free Tier + Resilient Fallback)
+ * AI Model Configuration — Hybrid (Google Gemini + OpenRouter Fallback)
  *
- * Uses Google Gemini API (gemini-2.5-flash / gemini-3.6-flash free tier)
+ * Strategy: Try Gemini free tier first, fall back to OpenRouter.
  * Return shape: { response: { text: () => string } }
  */
 
@@ -77,7 +77,7 @@ async function callOpenRouter(message, modelName, jsonMode = false) {
     messages: [{ role: "user", content: message }],
     temperature: 0.7,
     top_p: 0.95,
-    max_tokens: jsonMode ? 8192 : 2048,
+    max_tokens: jsonMode ? 16384 : 4096,
   };
 
   if (jsonMode) {
@@ -129,10 +129,12 @@ async function callOpenRouter(message, modelName, jsonMode = false) {
   }
 }
 
-// Free tier prioritized strategies
+// Cascading fallback: Gemini free tier → OpenRouter
 const STRATEGIES = [
+  { provider: "gemini", model: "gemini-2.0-flash" },
   { provider: "gemini", model: "gemini-2.5-flash" },
-  { provider: "gemini", model: "gemini-3.6-flash" },
+  { provider: "openrouter", model: "google/gemini-2.0-flash-exp:free" },
+  { provider: "openrouter", model: "meta-llama/llama-3.1-8b-instruct:free" },
 ];
 
 /**
@@ -148,12 +150,12 @@ async function sendWithRetry(message, jsonMode = false) {
 
       if (provider === "gemini") {
         text = await callGeminiDirect(message, model, jsonMode);
-        if (text === null) continue;
+        if (text === null) continue; // API key missing, skip
       } else {
         text = await callOpenRouter(message, model, jsonMode);
       }
 
-      console.log(`[AiModel] Success with ${provider}/${model}`);
+      console.log(`[AiModel] ✅ Success with ${provider}/${model}`);
       return {
         response: {
           text: () => text,
@@ -161,27 +163,29 @@ async function sendWithRetry(message, jsonMode = false) {
       };
     } catch (err) {
       lastError = err;
+      console.warn(`[AiModel] ❌ ${provider}/${model} failed: ${err.message?.substring(0, 120)}`);
+
       const isRetryable =
         err.status === 429 ||
         err.status === 503 ||
         err.status === 402 ||
+        err.status === 400 ||
         (err.message &&
           (err.message.includes("429") ||
             err.message.includes("rate") ||
             err.message.includes("quota") ||
-            err.message.includes("RESOURCE_EXHAUSTED")));
+            err.message.includes("RESOURCE_EXHAUSTED") ||
+            err.message.includes("API_KEY_INVALID")));
 
       if (isRetryable) {
-        const delayMs = Math.min(2000 * Math.pow(2, i), 10000);
-        console.warn(`[AiModel] ${provider}/${model} rate limited, waiting ${delayMs/1000}s...`);
+        const delayMs = Math.min(1500 * Math.pow(2, i), 8000);
+        console.warn(`[AiModel] ⏳ Retryable error, waiting ${delayMs/1000}s before next strategy...`);
         await sleep(delayMs);
-        continue;
       }
-      console.warn(`[AiModel] ${provider}/${model} error: ${err.message}, trying fallback...`);
       continue;
     }
   }
-  throw lastError || new Error("All AI models failed. Please try again.");
+  throw lastError || new Error("All AI models failed. Please check your API keys and try again.");
 }
 
 export const chatSession = {
@@ -191,4 +195,3 @@ export const chatSession = {
 export const GenAiCode = {
   sendMessage: async (message) => sendWithRetry(message, true),
 };
-
