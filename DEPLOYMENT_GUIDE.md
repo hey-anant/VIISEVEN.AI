@@ -1,68 +1,37 @@
-# Deployment Environment Variable Setup Guide
+# Vercel Deployment & Environment Variables Guide
 
-## Issue
-The deployed project is getting a 500 error from `/api/gen-ai-code` because the `NEXT_PUBLIC_GEMINI_API_KEY` environment variable is not configured in your deployment environment.
+## 1. Environment Variables in Vercel
 
-## Solution
+In your **Vercel Project Dashboard** (`Settings` → `Environment Variables`), add the following exact keys and types:
 
-### For Vercel Deployment:
+### A. Public Client Variables (Set Type to "Config" or proceed with `NEXT_PUBLIC_`):
+These variables must be accessible to the browser:
 
-1. **Go to your Vercel Dashboard**
-   - Navigate to your project
-   - Click on "Settings"
-   - Click on "Environment Variables"
+| Variable Name | Value Description |
+| :--- | :--- |
+| `NEXT_PUBLIC_CONVEX_URL` | Your Convex deployment URL (e.g. `https://flexible-lobster-72.convex.cloud`) |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | Your Convex site URL (e.g. `https://flexible-lobster-72.convex.site`) |
+| `NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID_KEY` | Your Google OAuth Client ID (e.g. `609205355144-...`) |
+| `NEXT_PUBLIC_GITHUB_CLIENT_ID` | Your GitHub OAuth App Client ID |
 
-2. **Add the following environment variable:**
-   ```
-   Name: NEXT_PUBLIC_GEMINI_API_KEY
-   Value: [Your Gemini API Key]
-   Environment: Production, Preview, Development (select all)
-   ```
+> **Note on Vercel Warning:** Vercel shows a prompt saying *"Public framework prefix..."*. Select **Config** (or keep the `NEXT_PUBLIC_` prefix) and save. These are client IDs and connection URLs that the browser requires.
 
-3. **Add any other required environment variables:**
-   ```
-   NEXT_PUBLIC_CONVEX_URL=[Your Convex URL]
-   NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID_KEY=[Your Google OAuth Client ID]
-   ```
+---
 
-4. **Redeploy your application:**
-   - Go to "Deployments"
-   - Click on the three dots (...) next to your latest deployment
-   - Click "Redeploy"
-   - OR: Push a new commit to trigger automatic redeployment
+### B. Secret Server-Only Variables (Set Type to "Secret" / Default):
+These variables are kept private on the server and are NEVER exposed to the browser:
 
-### For Other Platforms (Netlify, Railway, etc.):
+| Variable Name | Value Description |
+| :--- | :--- |
+| `CONVEX_DEPLOY_KEY` | Deploy key from Convex Dashboard (`Settings` → `Deploy Keys`) |
+| `GEMINI_API_KEY` | Google Gemini API Key |
+| `OPENROUTER_API_KEY` | OpenRouter API Key (Fallback AI) |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App Secret |
 
-1. Navigate to your project's environment variables settings
-2. Add the same environment variables as listed above
-3. Redeploy your application
+---
 
-## Verification
+## 2. Deploying
 
-After redeployment, check your browser console. You should see:
-- ✅ No "Gemini API key is not configured" errors
-- ✅ AI responses working correctly
-- ✅ No 500 errors from `/api/gen-ai-code` or `/api/ai-chat`
-
-## Local Testing
-
-To test locally before deploying:
-
-1. Ensure your `.env.local` file contains:
-   ```
-   NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
-   NEXT_PUBLIC_CONVEX_URL=your_convex_url_here
-   NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID_KEY=your_google_client_id_here
-   ```
-
-2. Run the build command:
-   ```bash
-   npm run build
-   ```
-
-3. If successful, start the production server:
-   ```bash
-   npm start
-   ```
-
-
+1. Ensure all variables above are saved in Vercel.
+2. Go to **Deployments** in Vercel.
+3. Click the three dots (`...`) on your latest deployment and select **Redeploy** (or push to git).
